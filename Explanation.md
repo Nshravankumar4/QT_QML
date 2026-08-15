@@ -1,23 +1,43 @@
-Yes. This is a **small Qt 5.15 + QML application using CMake**. For your interview, you should understand what each line does and especially how **CMake → C++ → QML → Signal/Slot/Event** connects together.
+# Qt Interview Prep — Complete Explanation
 
-There are actually **3 files** in your code:
+This document explains **every line** of your Qt 5.15 + QML project for interview preparation.
+
+---
+
+## 📊 Project Overview
+
+Your project demonstrates **Qt/QML and C++ communication** with **5 key files**:
 
 ```text
 QtInterviewPrep/
-│
-├── CMakeLists.txt
-│
+├── CMakeLists.txt              ← Build configuration (30 lines)
 ├── src/
-│   └── main.cpp
-│
-└── qml/
-    ├── qml.qrc
-    └── main.qml
+│   ├── main.cpp                ← Application entry point (43 lines, 10 steps)
+│   ├── backend.h               ← C++ classes (36 lines, 2 classes)
+│   └── backend.cpp             ← Implementation (36 lines, 4 functions)
+├── qml/
+│   ├── main.qml                ← User interface (80 lines, 8 components)
+│   └── qml.qrc                 ← Qt Resources (5 lines)
+└── README.md                   ← Setup guide
 ```
 
 ---
 
-# 1. CMakeLists.txt
+## 🎯 Learning Path for Interviews
+
+Read the files in this order:
+
+1. **CMakeLists.txt** (5 min) — Understand build process
+2. **src/backend.h** (3 min) — Learn C++ classes & Q_OBJECT
+3. **src/backend.cpp** (3 min) — See implementations
+4. **src/main.cpp** (5 min) — **Most important** — App initialization
+5. **qml/main.qml** (3 min) — QML UI & signal handlers
+
+Total: ~20 minutes to master this project
+
+---
+
+# 📝 Part 1: CMakeLists.txt — Build Configuration
 
 Your CMake file:
 
@@ -490,578 +510,485 @@ For your interview, you don't need to spend much time on this part.
 
 ---
 
-# Now let's understand `main.cpp`
-
-Your C++ code:
+# 📝 Part 2: src/backend.h — C++ Classes
 
 ```cpp
-#include <QGuiApplication>
-#include <QQmlApplicationEngine>
+#ifndef BACKEND_H
+#define BACKEND_H
+
+#include <QObject>
+
+// ============================================================================
+// Backend Class - C++ exposed to QML
+// ============================================================================
+// Key Concepts:
+// 1. Inherits from QObject - enables Qt's meta-object system
+// 2. Q_OBJECT macro - enables introspection
+// 3. Q_INVOKABLE - marks methods callable from QML
+// ============================================================================
+class Backend : public QObject
+{
+    Q_OBJECT  // Required for Qt meta-object system
+
+public:
+    // Constructor
+    // parent = nullptr for top-level objects
+    explicit Backend(QObject *parent = nullptr);
+
+    // Q_INVOKABLE makes this callable from QML
+    Q_INVOKABLE void showMessage();
+};
+
+
+// Backend_Next Class - Second C++ object exposed to QML
+class Backend_Next : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit Backend_Next(QObject *parent = nullptr);
+    Q_INVOKABLE void showMessage_Next();
+};
+
+#endif // BACKEND_H
 ```
+
+## Key Concepts
+
+### QObject Inheritance
+```cpp
+class Backend : public QObject
+```
+- Inherits from QObject to enable:
+  - Signals/slots
+  - Q_PROPERTY
+  - Parent-child memory management
+  - Q_INVOKABLE methods callable from QML
+
+**Interview Q:** "Why inherit from QObject?"
+**Answer:** "QObject provides the meta-object system which enables signals, slots, properties, and allows QML to call C++ methods."
+
+### Q_OBJECT Macro
+```cpp
+Q_OBJECT
+```
+- Tells Qt's Meta-Object Compiler to generate introspection code
+- Enables signals, slots, and Q_INVOKABLE
+- **Without it:** QML can't access the class's methods/properties
+
+**Interview Q:** "What does Q_OBJECT do?"
+**Answer:** "Q_OBJECT is a macro that marks a class for the Meta-Object Compiler (MOC), generating code for signals, slots, and Q_INVOKABLE methods."
+
+### Q_INVOKABLE
+```cpp
+Q_INVOKABLE void showMessage();
+```
+- Marks a C++ method as callable from QML
+- In QML: `backend.showMessage()` works because of Q_INVOKABLE
+- Without Q_INVOKABLE: QML can't call this method
 
 ---
 
-# 15. `QGuiApplication`
+# 📝 Part 3: src/backend.cpp — Implementation
 
 ```cpp
-QGuiApplication app(argc, argv);
+#include "backend.h"
+
+#include <QDebug>
+
+// 1. Backend Constructor
+// Initializes the QObject parent
+Backend::Backend(QObject *parent)
+    : QObject(parent)  // Call parent constructor
+{
+    qDebug() << "Backend Object Created";
+}
+
+// 2. Backend Function
+// This is called from QML:  backend.showMessage()
+void Backend::showMessage()
+{
+    qDebug() << "Backend Function Called";
+}
+
+
+// 3. Backend_Next Constructor
+Backend_Next::Backend_Next(QObject *parent)
+    : QObject(parent)
+{
+    qDebug() << "Backend_Next Object Created";
+}
+
+// 4. Backend_Next Function
+// Called from QML:  backendnext.showMessage_Next()
+void Backend_Next::showMessage_Next()
+{
+    qDebug() << "Backend_next Function Called";
+}
 ```
 
-This creates the Qt application object.
+## Key Concepts
 
-It manages things such as:
-
-* Application lifecycle
-* Event loop
-* GUI-related functionality
-* Command-line arguments
-* Events
-
-For a Widgets application, you would commonly use:
-
+### Initializer List
 ```cpp
-QApplication
+Backend::Backend(QObject *parent)
+    : QObject(parent)  // ← Initializer list
 ```
+- Calls the base class QObject constructor with parent
+- Proper initialization before member variables
 
-For a QML/Qt Quick application:
+**Why:** Ensures parent-child relationship is set up correctly.
 
+### qDebug() Output
 ```cpp
-QGuiApplication
+qDebug() << "Backend Object Created";
 ```
-
-is commonly used.
+- Outputs to console/debug pane
+- Visible in Qt Creator's "Application Output"
+- Confirms functions were actually called
 
 ---
 
-# 16. `QQmlApplicationEngine`
+# 📝 Part 4: src/main.cpp — Application Entry Point
+
+**The most important file!** Shows how Qt, QML, and C++ work together.
 
 ```cpp
-QQmlApplicationEngine engine;
+#include "backend.h"
+
+#include <QGuiApplication>          // Application management
+#include <QQmlApplicationEngine>    // QML engine
+#include <QQmlContext>              // Context for exposing C++ objects
+
+int main(int argc, char *argv[])
+{
+    // ================================================================
+    // Step 1: Create QGuiApplication
+    // ================================================================
+    // Manages:
+    // - Event loop
+    // - Application lifecycle
+    // - GUI-specific settings
+    // Only ONE QGuiApplication per process
+    QGuiApplication app(argc, argv);
+
+    // ================================================================
+    // Step 2: Create QML Engine
+    // ================================================================
+    // Loads and executes QML files
+    // Manages:
+    // - QML parsing and compilation
+    // - JavaScript engine
+    // - Object creation from QML
+    QQmlApplicationEngine engine;
+
+    // ================================================================
+    // Step 3: Create C++ Backend Object #1
+    // ================================================================
+    // Backend object lives on the stack
+    // Will be destroyed when main() exits
+    Backend backend;
+
+    // ================================================================
+    // Step 4a: Expose Backend to QML
+    // ================================================================
+    // Makes Backend object accessible from QML code
+    // Syntax: engine.rootContext()->setContextProperty("name", pointer)
+    // 
+    // After this line, QML can:
+    // - Call:  backend.showMessage()
+    // - Access: backend properties (if we had Q_PROPERTY)
+    // - Connect: to backend signals (if we had Q_SIGNAL)
+    engine.rootContext()->setContextProperty("backend", &backend);
+
+    // ================================================================
+    // Step 4b: Create and Expose Second Backend Object
+    // ================================================================
+    Backend_Next backendnext;
+    engine.rootContext()->setContextProperty("backendnext", &backendnext);
+
+    // ================================================================
+    // Step 5: Define QML File Location
+    // ================================================================
+    // "qrc:/" means Qt Resource System
+    // This loads from compiled resources, not the filesystem
+    const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
+
+    // ================================================================
+    // Step 6: Connect Error Handler
+    // ================================================================
+    // QObject::connect(sender, signal, receiver, slot)
+    // 
+    // This handles the case where QML fails to load
+    // Lambda [url] captures url from outer scope
+    // If obj is nullptr, the QML failed to load
+    QObject::connect(
+        &engine,                                    // Signal source
+        &QQmlApplicationEngine::objectCreated,      // Which signal
+        &app,                                       // Receiver
+        [url](QObject *obj, const QUrl &objUrl) {   // Lambda slot
+            if (!obj && objUrl == url) {
+                QCoreApplication::exit(-1);         // Exit with error
+            }
+        });
+
+    // ================================================================
+    // Step 7: Load QML File
+    // ================================================================
+    // engine.load() does:
+    // 1. Find qrc:/qml/main.qml in resources
+    // 2. Parse the QML code
+    // 3. Create the root ApplicationWindow
+    // 4. Emit objectCreated signal (caught by lambda above)
+    engine.load(url);
+
+    // ================================================================
+    // Step 8: Start Qt Event Loop
+    // ================================================================
+    // app.exec() starts the event loop and blocks until:
+    // - User closes the window, OR
+    // - QCoreApplication::quit() is called
+    // 
+    // The event loop handles:
+    // - Mouse clicks and keyboard input
+    // - Window events (resize, paint)
+    // - Signals and slots
+    // - Timers
+    return app.exec();
+}
 ```
 
-This creates the QML engine.
+## Interview Questions on main.cpp
 
-Its job is essentially:
+**Q: Why create a QGuiApplication?**
+A: It manages the application lifecycle, event loop, and GUI-specific settings. Every Qt GUI app needs exactly one.
 
-> Load and execute QML.
+**Q: What does setContextProperty do?**
+A: It exposes a C++ object to QML so QML code can call its methods and access its properties. This is how QML and C++ communicate.
 
-Your QML file:
+**Q: Why use `const QUrl url(...)`?**
+A: To define the QML file location. `qrc:/` means load from Qt's compiled-in resource system (defined in qml.qrc).
 
-```text
-main.qml
-```
+**Q: What's the error handler lambda for?**
+A: It catches QML loading failures. If the QML file can't be parsed or loaded, the app exits with error code -1.
 
-will be loaded by this engine.
+**Q: Why call engine.load(url)?**
+A: This actually loads and parses the QML file, creating the UI from the QML code.
+
+**Q: What does app.exec() do?**
+A: Starts the Qt event loop. The app blocks here until the user closes the window or quit() is called.
+
+**Q: Explain the complete flow from button click to C++ execution**
+A: 
+1. User clicks button in QML
+2. QML `onClicked` signal handler triggers
+3. Calls `backend.showMessage()`
+4. Qt meta-object system marshals the call to C++
+5. `Backend::showMessage()` executes
+6. `qDebug()` outputs to console
 
 ---
 
-# 17. QML URL
+# 📝 Part 5: qml/main.qml — User Interface
 
-```cpp
-const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
-```
+```qml
+// Step 1: Import QtQuick core types
+import QtQuick 2.15
 
-This creates the URL:
+// Step 2: Import UI controls
+import QtQuick.Controls 2.15
 
-```text
-qrc:/qml/main.qml
-```
+// Step 3: Import layout types
+import QtQuick.Layouts 1.15
 
-Let's break it down.
 
-### `qrc:`
+// Step 4: ApplicationWindow (root object)
+// Top-level window container for QML applications
+ApplicationWindow {
 
-Qt Resource System.
+    // Window dimensions in logical pixels
+    width: 640
+    height: 420
 
-### `/qml/`
+    // Show the window on screen
+    visible: true
 
-The resource prefix.
+    // Window title shown in title bar
+    title: "Qt C++ and QML Communication"
 
-### `main.qml`
 
-Your QML file.
+    // Step 5: ColumnLayout
+    // Arranges child items vertically (top to bottom)
+    ColumnLayout {
 
-So:
+        // Position in center of parent window
+        anchors.centerIn: parent
 
-```text
-qrc:/qml/main.qml
-```
+        // Space between children
+        spacing: 14
 
-means:
 
-> Find `main.qml` inside the Qt resource system under `/qml`.
-
----
-
-# 18. `QObject::connect`
-
-Now we reach the most important part related to your previous Signals/Slots question.
-
-```cpp
-QObject::connect(
-    &engine,
-    &QQmlApplicationEngine::objectCreated,
-    &app,
-    [url](QObject *obj, const QUrl &objUrl) {
-        if (!obj && objUrl == url) {
-            QCoreApplication::exit(-1);
+        // Step 6: Label (Display Text)
+        Label {
+            id: message
+            text: "Hello Qt 5.15"
+            font.pixelSize: 28
+            Layout.alignment: Qt.AlignHCenter
         }
-    },
-    Qt::QueuedConnection);
-```
 
-This is a **signal-slot connection**.
 
-The sender is:
+        // Step 7: First Button
+        // Calls C++ Backend function
+        Button {
+            text: "Call C++ Function"
+            Layout.alignment: Qt.AlignHCenter
 
-```cpp
-&engine
-```
+            // onClicked: signal handler triggered on button click
+            onClicked: {
+                // Call C++ method on backend object
+                // "backend" was exposed in main.cpp via setContextProperty
+                // Qt's meta-object system marshals this call to C++
+                backend.showMessage()
+            }
+        }
 
-The signal is:
 
-```cpp
-&QQmlApplicationEngine::objectCreated
-```
+        // Step 8: Second Button
+        // Calls C++ Backend_Next function
+        Button {
+            text: "Backend_next C++ Function"
+            Layout.alignment: Qt.AlignHCenter
 
-The receiver/context is:
-
-```cpp
-&app
-```
-
-The slot is this lambda:
-
-```cpp
-[url](QObject *obj, const QUrl &objUrl) {
-    if (!obj && objUrl == url) {
-        QCoreApplication::exit(-1);
+            onClicked: {
+                // Call C++ method on second backend object
+                // "backendnext" was exposed in main.cpp
+                backendnext.showMessage_Next()
+            }
+        }
     }
 }
 ```
 
-And the connection type is:
+## Interview Questions on main.qml
 
-```cpp
-Qt::QueuedConnection
+**Q: What do the imports do?**
+A: Import QtQuick (core QML types), Controls (Button, Label), and Layouts (ColumnLayout).
+
+**Q: Why use ColumnLayout?**
+A: It automatically arranges children vertically with proper spacing and alignment. Responsive to window resize.
+
+**Q: What does `anchors.centerIn: parent` do?**
+A: Positions the layout in the center of its parent window.
+
+**Q: How does QML call C++ functions?**
+A: Via Q_INVOKABLE methods on context property objects. When you call `backend.showMessage()`, Qt marshals it to the C++ function.
+
+**Q: What's `onClicked`?**
+A: A signal handler. When the button is clicked, the onClicked handler is triggered.
+
+---
+
+# 🔄 Complete Data Flow
+
+## Button Click → C++ Execution
+
+```
+┌─ User clicks button in QML UI
+│
+├─ main.qml: onClicked { backend.showMessage() }
+│
+├─ Qt meta-object system detects this is a Q_INVOKABLE method call
+│
+├─ Marshals call from QML JavaScript to C++
+│
+├─ Backend::showMessage() in backend.cpp executes
+│
+├─ qDebug() outputs: "Backend Function Called"
+│
+└─ Console output visible in Qt Creator's "Application Output" pane
+```
+
+## Application Startup → Window Display
+
+```
+┌─ main() starts
+│
+├─ Step 1: QGuiApplication created (manages app lifecycle)
+│
+├─ Step 2: QQmlApplicationEngine created (loads QML)
+│
+├─ Step 3-4: C++ Backend objects created & exposed to QML
+│
+├─ Step 5: QML file URL defined (qrc:/qml/main.qml)
+│
+├─ Step 6: Error handler connected (catches QML failures)
+│
+├─ Step 7: QML file loaded and parsed
+│
+├─ Step 8: app.exec() starts event loop
+│
+└─ Window appears, waiting for user interaction
 ```
 
 ---
 
-# 19. What is `objectCreated`?
+# 📚 Summary Table
 
-When QML is loaded, the engine creates the QML object.
-
-If creation succeeds:
-
-```text
-obj != nullptr
-```
-
-If creation fails:
-
-```text
-obj == nullptr
-```
-
-So this code:
-
-```cpp
-if (!obj && objUrl == url)
-```
-
-means:
-
-> If the QML object could not be created and it corresponds to the URL we attempted to load, exit the application with error code `-1`.
+| Component | Purpose | Lines | Key Concept |
+|---|---|---|---|
+| CMakeLists.txt | Build configuration | 30 | AUTOMOC, AUTORCC, Qt linking |
+| src/backend.h | C++ classes | 36 | QObject, Q_OBJECT, Q_INVOKABLE |
+| src/backend.cpp | Implementation | 36 | Constructors, method bodies |
+| src/main.cpp | Application entry | 43 | 8 steps: app → QML engine → context properties → event loop |
+| qml/main.qml | User interface | 80 | 8 components: Window → Layout → Buttons → C++ calls |
 
 ---
 
-# 20. Why `[url]`?
+# ✅ Interview Quick Reference
 
-This:
+## Q: "How does QML call C++ functions?"
+**A:** "C++ classes inherit from QObject and mark methods with Q_INVOKABLE. The C++ object is exposed to QML via `engine.rootContext()->setContextProperty()`. When QML calls the method, Qt's meta-object system marshals the call to C++."
 
-```cpp
-[url]
-```
+## Q: "Explain the complete flow from button click to console output"
+**A:**
+1. User clicks button in QML UI
+2. Button emits `clicked` signal
+3. `onClicked` handler in QML is triggered
+4. QML calls `backend.showMessage()`
+5. Meta-object system marshals the call to C++
+6. `Backend::showMessage()` in C++ executes
+7. `qDebug()` outputs to console
 
-is a **C++ lambda capture**.
+## Q: "What's the purpose of Q_OBJECT?"
+**A:** "Q_OBJECT is a macro that marks a class for Qt's Meta-Object Compiler (MOC). MOC generates code enabling signals, slots, Q_PROPERTY, and Q_INVOKABLE methods."
 
-It means the lambda captures `url`.
+## Q: "Why do we need parent-child relationships in Qt?"
+**A:** "Parent-child relationships enable automatic memory management. When a parent is destroyed, all children are automatically deleted, preventing memory leaks."
 
-The lambda needs `url` because it checks:
+## Q: "What's the purpose of AUTOMOC?"
+**A:** "AUTOMOC automatically runs Qt's Meta-Object Compiler on classes with Q_OBJECT, generating necessary introspection code. Without it, we'd run MOC manually."
 
-```cpp
-objUrl == url
-```
+## Q: "Explain the Qt event loop"
+**A:** "`app.exec()` starts the event loop, which blocks and continuously processes events: mouse clicks, keyboard input, signals/slots, timers, window events. The app blocks here until user closes the window or `quit()` is called."
 
-So:
-
-```cpp
-[url](QObject *obj, const QUrl &objUrl)
-```
-
-means:
-
-> Capture `url` and accept `obj` and `objUrl` as parameters.
-
----
-
-# 21. Why `Qt::QueuedConnection`?
-
-This is an important interview topic.
-
-```cpp
-Qt::QueuedConnection
-```
-
-means the slot/lambda execution is posted to the receiver's event loop rather than being called immediately in the signal-emitting call stack.
-
-For Qt interviews, remember:
-
-### Direct
-
-```text
-Signal
- ↓
-Slot executes immediately
-```
-
-### Queued
-
-```text
-Signal
- ↓
-Event posted
- ↓
-Receiver's event loop
- ↓
-Slot executes
-```
-
-This becomes particularly important with **threads**.
+## Q: "What does setContextProperty do?"
+**A:** "It exposes a C++ QObject to QML, making the object's Q_INVOKABLE methods and Q_PROPERTY properties accessible from QML code."
 
 ---
 
-# 22. `engine.load(url)`
-
-```cpp
-engine.load(url);
-```
-
-This tells the QML engine:
-
-> Load `qrc:/qml/main.qml`.
-
-So now:
-
-```text
-main.cpp
-    ↓
-QQmlApplicationEngine
-    ↓
-qrc:/qml/main.qml
-    ↓
-ApplicationWindow
-```
-
----
-
-# 23. `app.exec()`
-
-Finally:
-
-```cpp
-return app.exec();
-```
-
-This starts the **Qt event loop**.
-
-This is extremely important.
-
-Without the event loop, your application won't properly process things like:
-
-* Mouse clicks
-* Keyboard events
-* Signals/slots
-* Timers
-* UI events
-* Network events
-* Queued connections
-
-Conceptually:
-
-```text
-app.exec()
-     ↓
-Event Loop
-     ↓
- ┌───────────────┐
- │ Mouse event   │
- │ Signal        │
- │ Timer         │
- │ Network       │
- │ QML event     │
- └───────────────┘
-```
-
----
-
-# Now your QML
-
-```qml
-import QtQuick 2.15
-import QtQuick.Controls 2.15
-import QtQuick.Layouts 1.15
-```
-
-These import QML modules.
-
-### QtQuick
-
-Basic QML functionality.
-
-### QtQuick.Controls
-
-Controls like:
-
-```text
-Button
-Label
-TextField
-```
-
-### QtQuick.Layouts
-
-Provides:
-
-```text
-ColumnLayout
-RowLayout
-GridLayout
-```
-
----
-
-# 24. `ApplicationWindow`
-
-```qml
-ApplicationWindow {
-    width: 640
-    height: 420
-    visible: true
-    title: "Qt Minimal"
-```
-
-This creates the main application window.
-
-It is:
-
-```text
-Width  = 640
-Height = 420
-Visible = true
-Title = Qt Minimal
-```
-
----
-
-# 25. `ColumnLayout`
-
-```qml
-ColumnLayout {
-    anchors.centerIn: parent
-    spacing: 14
-```
-
-This arranges children vertically.
-
-Conceptually:
-
-```text
-       Label
-         ↓
-      14 px
-         ↓
-      Button
-```
-
-And:
-
-```qml
-anchors.centerIn: parent
-```
-
-centers the layout inside the parent window.
-
----
-
-# 26. Label
-
-```qml
-Label {
-    id: message
-    text: "Hello Qt 5.15"
-    font.pixelSize: 28
-    Layout.alignment: Qt.AlignHCenter
-}
-```
-
-The important part is:
-
-```qml
-id: message
-```
-
-This gives the object an identifier.
-
-You can then access it:
-
-```qml
-message.text
-```
-
----
-
-# 27. Button
-
-```qml
-Button {
-    text: "Click Me"
-
-    Layout.alignment: Qt.AlignHCenter
-
-    onClicked: message.text = "Qt is working"
-}
-```
-
-This is another **signal/handler mechanism**.
-
-The Button emits:
-
-```text
-clicked
-```
-
-When the button is clicked:
-
-```qml
-onClicked:
-```
-
-runs.
-
-Then:
-
-```qml
-message.text = "Qt is working"
-```
-
-changes the Label.
-
----
-
-# Complete flow
-
-This is the most important thing to understand for your interview:
-
-```text
-                  CMake
-                    │
-                    ▼
-          Build Qt Application
-                    │
-                    ▼
-                main.cpp
-                    │
-                    ▼
-        QGuiApplication created
-                    │
-                    ▼
-        QQmlApplicationEngine
-                    │
-                    ▼
-        engine.load(url)
-                    │
-                    ▼
-          qrc:/qml/main.qml
-                    │
-                    ▼
-          ApplicationWindow
-                    │
-             ┌──────┴──────┐
-             ▼             ▼
-           Label         Button
-                           │
-                           │ clicked
-                           ▼
-                    onClicked handler
-                           │
-                           ▼
-                  message.text =
-                  "Qt is working"
-                           │
-                           ▼
-                      Label updates
-```
-
----
-
-# ⭐ Interview questions from this exact code
-
-I would expect an interviewer to ask you these:
-
-### CMake
-
-1. What is `cmake_minimum_required()`?
-2. What does `project()` do?
-3. Why use `CMAKE_CXX_STANDARD 17`?
-4. What is `CMAKE_AUTOMOC`?
-5. What is MOC?
-6. What is `CMAKE_AUTORCC`?
-7. What is a `.qrc` file?
-8. What is `CMAKE_AUTOUIC`?
-9. Why use `find_package()`?
-10. What does `REQUIRED` mean?
-11. What is `target_link_libraries()`?
-12. What does `PRIVATE` mean?
-
-### Qt/QML
-
-13. What is `QQmlApplicationEngine`?
-14. What is `QGuiApplication`?
-15. What is the Qt event loop?
-16. What does `engine.load()` do?
-17. What is `qrc:/`?
-18. What is `ApplicationWindow`?
-19. Difference between Qt Quick and Qt Quick Controls?
-20. How does QML communicate with C++?
-
-### Signals/Slots
-
-21. What is `objectCreated`?
-22. What is `QObject::connect()`?
-23. What is a lambda?
-24. Why is `[url]` used?
-25. What is `Qt::QueuedConnection`?
-26. Difference between Direct and Queued connection?
-27. What happens if QML loading fails?
-
-### ⭐ One particularly important interview question
-
-They may show you:
-
-```cpp
-QObject::connect(
-    &engine,
-    &QQmlApplicationEngine::objectCreated,
-    &app,
-    [url](QObject *obj, const QUrl &objUrl) {
-        if (!obj && objUrl == url) {
-            QCoreApplication::exit(-1);
-        }
-    },
-    Qt::QueuedConnection);
-```
+# 🚀 You're Ready for Interviews!
+
+This project demonstrates:
+✅ Qt/QML communication  
+✅ C++ and QML integration  
+✅ Meta-object system  
+✅ Parent-child memory management  
+✅ Signal/slot connections  
+✅ CMake build system  
+✅ Context properties  
+✅ Event loop architecture  
+
+All in a minimal, educational codebase. Perfect for interview preparation!
 
 and ask:
 
