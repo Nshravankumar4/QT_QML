@@ -28,6 +28,8 @@ qt_interview_prep/
 │   ├── main.cpp             # Application entry point (10 steps)
 │   ├── backend.h            # C++ classes exposed to QML (2 classes)
 │   └── backend.cpp          # Implementation (4 functions)
+│   ├── signal_slot_demo.h   # Dedicated signals and slots class
+│   └── signal_slot_demo.cpp # connect(), emit, and C++ slot implementation
 ├── qml/
 │   ├── main.qml             # UI layout (8 components)
 │   └── qml.qrc              # QML resource file
@@ -39,8 +41,9 @@ qt_interview_prep/
 ## 🎯 Current Project Scope
 
 - **1 C++ entry file** (`main.cpp`) — 10 commented steps
-- **2 QML backend classes** (`Backend`, `Backend_Next`)
-- **1 QML screen** (`main.qml`) — 2 buttons + 1 label
+- **3 C++ QObject classes** (`Backend`, `Backend_Next`, `SignalSlotDemo`)
+- **1 dedicated signals and slots example** — C++ signal, C++ slot, and QML handler
+- **1 QML screen** (`main.qml`) — 3 buttons + 1 label
 - **Minimal** — No networking, serial, or database code
 - **Interview-Ready** — Numbered comments in every file
 
@@ -99,6 +102,26 @@ C++: Backend::showMessage() executes
 Console: "Backend Function Called"
 ```
 
+### Flow: Signals and Slots Example
+
+The third button demonstrates a separate `SignalSlotDemo` class:
+
+1. QML calls `signalSlotDemo.triggerSignal()` through `Q_INVOKABLE`
+2. C++ emits `messageChanged(QString)` with `emit`
+3. `QObject::connect()` delivers the signal to the C++ `handleMessage()` slot
+4. QML `Connections` receives `onMessageChanged(messageText)`
+5. The QML label displays the received message
+
+```text
+QML button
+   ↓
+Q_INVOKABLE triggerSignal()
+   ↓
+emit messageChanged(text)
+   ├── C++ handleMessage(text) slot → console output
+   └── QML onMessageChanged(text) → label update
+```
+
 ---
 
 ## 📖 Learning Sequence (Read in This Order)
@@ -125,6 +148,21 @@ For interview preparation, understand the code in this order:
    - UI layout structure
    - Button click handlers
    - C++ object access from QML
+
+5. **`src/signal_slot_demo.h`** (5 min)
+   - `signals:` and `public slots:` sections
+   - Signal parameters
+   - Difference between a signal, slot, and `Q_INVOKABLE`
+
+6. **`src/signal_slot_demo.cpp`** (5 min)
+   - Typed `QObject::connect()` syntax
+   - `emit` and one-to-many delivery
+   - C++ slot execution
+
+7. **Signals and Slots in `qml/main.qml`** (5 min)
+   - `Connections` and `target`
+   - `onMessageChanged` naming convention
+   - C++ to QML communication
 
 ---
 
@@ -187,6 +225,43 @@ Marks C++ methods callable from QML:
 Q_INVOKABLE void showMessage();  // QML can call this
 ```
 
+### Signals and Slots
+
+The dedicated class contains all the basic interview elements:
+
+```cpp
+signals:
+   void messageChanged(const QString &message);
+
+public slots:
+   void handleMessage(const QString &message);
+```
+
+The signal announces that a message is available. The slot handles the message. `connect()` links
+them, and `emit` sends the signal:
+
+```cpp
+QObject::connect(
+   this,
+   &SignalSlotDemo::messageChanged,
+   this,
+   &SignalSlotDemo::handleMessage);
+
+emit messageChanged(QStringLiteral("Signal received successfully"));
+```
+
+QML receives the same signal with `Connections`:
+
+```qml
+Connections {
+   target: signalSlotDemo
+
+   function onMessageChanged(messageText) {
+      message.text = messageText
+   }
+}
+```
+
 ---
 
 ## ✅ Interview Talking Points
@@ -212,6 +287,21 @@ Q_INVOKABLE void showMessage();  // QML can call this
    - Meta-object system executes the function
    - Return value comes back to QML
 
+5. **"Explain signals and slots"**
+   - A signal announces that an event occurred
+   - A slot or QML handler responds to the event
+   - `QObject::connect()` creates the relationship
+   - `emit` sends the signal and its parameters
+
+6. **"What is the difference between Q_INVOKABLE, a signal, and a slot?"**
+   - `Q_INVOKABLE`: QML can call the C++ method
+   - Signal: C++ announces an event
+   - Slot: C++ function handles an event
+
+7. **"What is QML Connections?"**
+   - It listens to signals from a target QObject
+   - `onMessageChanged` runs when the C++ signal is emitted
+
 ---
 
 ## 📝 File Descriptions
@@ -222,9 +312,12 @@ Q_INVOKABLE void showMessage();  // QML can call this
 | `src/main.cpp` | 43 | App initialization, QML engine, event loop |
 | `src/backend.h` | 36 | 2 QObject classes, Q_INVOKABLE methods |
 | `src/backend.cpp` | 36 | Constructor implementations, method bodies |
+| `src/signal_slot_demo.h` | 30 | Dedicated signal, slot, and Q_INVOKABLE declaration |
+| `src/signal_slot_demo.cpp` | 25 | `connect()`, `emit`, and slot implementation |
 | `qml/main.qml` | 80 | Window, layout, buttons, label, signal handlers |
 | `qml/qml.qrc` | 5 | Qt Resource System file mappings |
 
 ---
 
-**Ready for interviews! Each file has numbered comments explaining every step.** 🚀
+**Ready for interviews! Each file has numbered comments explaining every step, including a separate
+Signals and Slots example.** 🚀

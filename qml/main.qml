@@ -86,5 +86,24 @@ ApplicationWindow {
                 backendnext.showMessage_Next()
             }
         }
+
+        // Dedicated Signals and Slots example.
+        Button {
+            text: "Run Signals and Slots"
+            Layout.alignment: Qt.AlignHCenter
+
+            // QML calls the Q_INVOKABLE method in SignalSlotDemo.
+            onClicked:
+            {signalSlotDemo.triggerSignal()}
+        }
+
+        // Receives the custom signal emitted by the C++ object.
+        Connections {
+            target: signalSlotDemo
+
+            function onMessageChanged(messageText) {
+                message.text = messageText
+            }
+        }
     }
 }

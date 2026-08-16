@@ -6,7 +6,7 @@ This document explains **every line** of your Qt 5.15 + QML project for intervie
 
 ## 📊 Project Overview
 
-Your project demonstrates **Qt/QML and C++ communication** with **5 key files**:
+Your project demonstrates **Qt/QML and C++ communication** with the following key files:
 
 ```text
 QtInterviewPrep/
@@ -15,6 +15,8 @@ QtInterviewPrep/
 │   ├── main.cpp                ← Application entry point (43 lines, 10 steps)
 │   ├── backend.h               ← C++ classes (36 lines, 2 classes)
 │   └── backend.cpp             ← Implementation (36 lines, 4 functions)
+│   ├── signal_slot_demo.h      ← Dedicated signal/slot class
+│   └── signal_slot_demo.cpp    ← connect(), emit, and slot implementation
 ├── qml/
 │   ├── main.qml                ← User interface (80 lines, 8 components)
 │   └── qml.qrc                 ← Qt Resources (5 lines)
@@ -32,8 +34,145 @@ Read the files in this order:
 3. **src/backend.cpp** (3 min) — See implementations
 4. **src/main.cpp** (5 min) — **Most important** — App initialization
 5. **qml/main.qml** (3 min) — QML UI & signal handlers
+6. **src/signal_slot_demo.h** (5 min) — signal, slot, and Q_INVOKABLE declaration
+7. **src/signal_slot_demo.cpp** (5 min) — connect(), emit, and slot execution
 
-Total: ~20 minutes to master this project
+Total: ~30 minutes to master this project
+
+---
+
+# Signals & Slots — New Dedicated Class
+
+The project now contains a separate class for this topic:
+
+```text
+src/signal_slot_demo.h    - class declaration, signal, slot, Q_INVOKABLE method
+src/signal_slot_demo.cpp  - connect(), emit, and slot implementation
+```
+
+## Complete flow
+
+```text
+QML button
+    |
+    | signalSlotDemo.triggerSignal()
+    v
+SignalSlotDemo::triggerSignal()
+    |
+    | emit messageChanged(text)
+    +----------------------+
+    |                      |
+    v                      v
+C++ handleMessage()   QML onMessageChanged(messageText)
+    |                      |
+    v                      v
+Console output         Label text update
+```
+
+## Code topics to understand
+
+### 1. `QObject`
+
+`SignalSlotDemo` inherits from `QObject` so it can use Qt's Meta-Object System, signals, slots,
+parent-child ownership, and QML integration.
+
+### 2. `Q_OBJECT`
+
+`Q_OBJECT` enables Qt meta-object features. CMake's `CMAKE_AUTOMOC ON` runs MOC automatically for
+this class.
+
+### 3. `signals:`
+
+```cpp
+void messageChanged(const QString &message);
+```
+
+This declares an event notification. The signal does not contain the response logic.
+
+### 4. `public slots:`
+
+```cpp
+void handleMessage(const QString &message);
+```
+
+This declares a function that can receive a compatible signal and handle its data.
+
+### 5. `QObject::connect()`
+
+```cpp
+QObject::connect(
+    this,
+    &SignalSlotDemo::messageChanged,
+    this,
+    &SignalSlotDemo::handleMessage);
+```
+
+This connects the sender signal to the receiver slot. The typed pointer-to-member syntax allows the
+compiler to check the signal and slot signatures.
+
+### 6. `emit`
+
+```cpp
+emit messageChanged(QStringLiteral("Signal received successfully"));
+```
+
+This sends the signal. Every compatible connected receiver is notified.
+
+### 7. Signal parameters
+
+The `QString` parameter carries data from the signal sender to each receiver.
+
+### 8. `Q_INVOKABLE`
+
+```cpp
+Q_INVOKABLE void triggerSignal();
+```
+
+This is a callable C++ method, not a signal or slot. QML calls it to begin the demonstration.
+
+### 9. QML `Connections`
+
+```qml
+Connections {
+    target: signalSlotDemo
+
+    function onMessageChanged(messageText) {
+        message.text = messageText
+    }
+}
+```
+
+`Connections` listens to signals from an exposed QObject. The handler name is formed from `on` plus
+the signal name with its first letter capitalized.
+
+### 10. C++ to QML communication
+
+The C++ object is exposed in `main.cpp` with `setContextProperty()`. QML then accesses it using the
+name `signalSlotDemo`.
+
+## Correct interview topics to cover
+
+1. Why a signal is a notification and does not implement response logic
+2. What a slot is and how it receives signal parameters
+3. `QObject::connect()` sender, signal, receiver, and slot
+4. `emit` and one-to-many signal delivery
+5. `Q_OBJECT` and MOC/AUTOMOC
+6. Typed signal-slot connections and compile-time checking
+7. Signals with parameters and compatible signatures
+8. `Q_INVOKABLE` versus a signal versus a slot
+9. QML `onSignalName` handlers
+10. QML `Connections` and `target`
+11. C++ to QML communication through `setContextProperty()`
+12. Direct and queued connections
+13. Thread affinity and UI updates on the UI thread
+14. Connection lifetime and automatic disconnection when a QObject is destroyed
+15. Connecting one signal to multiple slots
+
+## Most important interview answer
+
+> Signals and slots are Qt's type-safe communication mechanism. A signal announces that an event
+> occurred, and a connected slot or QML handler responds to it without tightly coupling the sender
+> to the receiver.
 
 ---
 
