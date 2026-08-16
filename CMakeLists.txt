@@ -18,6 +18,12 @@ add_executable(QtInterviewPrep
     src/main.cpp
     src/backend.h
     src/backend.cpp
+    src/signal_slot_demo.h
+    src/signal_slot_demo.cpp
+    src/vehicle_data.h
+    src/vehicle_data.cpp
+    src/ownership_demo.h
+    src/ownership_demo.cpp
     qml/qml.qrc
 )
 

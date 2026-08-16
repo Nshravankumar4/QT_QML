@@ -1,4 +1,7 @@
 #include "backend.h"
+#include "signal_slot_demo.h"
+#include "vehicle_data.h"
+#include "ownership_demo.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -27,6 +30,18 @@ int main(int argc, char *argv[])
     // 6. Expose second object to QML
     // QML can access it using "backendnext"
     engine.rootContext()->setContextProperty("backendnext", &backendnext);
+
+    // Create and expose the separate Signals and Slots example to QML.
+    SignalSlotDemo signalSlotDemo;
+    engine.rootContext()->setContextProperty("signalSlotDemo", &signalSlotDemo);
+
+    // Create and expose the Q_PROPERTY and binding example to QML.
+    VehicleData vehicleData;
+    engine.rootContext()->setContextProperty("vehicleData", &vehicleData);
+
+    // Create and expose the QObject ownership example to QML.
+    OwnershipDemo ownershipDemo;
+    engine.rootContext()->setContextProperty("ownershipDemo", &ownershipDemo);
 
     // 7. QML file location
     // qrc:/ refers to Qt Resource System

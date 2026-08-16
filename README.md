@@ -16,6 +16,8 @@ Perfect for interview preparation! Each file has clear comments explaining the f
 5. **Parent-Child Ownership** — Qt's memory management model
 6. **QML Layout System** — ColumnLayout for UI arrangement
 7. **Qt Resource System (qrc)** — Loading QML files from resources
+8. **Q_PROPERTY and QML Binding** — Automatic UI updates from C++ data
+9. **QObject Ownership and Lifetime** — Parent-child cleanup and `deleteLater()`
 
 ---
 
@@ -28,6 +30,12 @@ qt_interview_prep/
 │   ├── main.cpp             # Application entry point (10 steps)
 │   ├── backend.h            # C++ classes exposed to QML (2 classes)
 │   └── backend.cpp          # Implementation (4 functions)
+│   ├── signal_slot_demo.h   # Dedicated signals and slots class
+│   └── signal_slot_demo.cpp # connect(), emit, and C++ slot implementation
+│   ├── vehicle_data.h        # Q_PROPERTY declaration and accessors
+│   └── vehicle_data.cpp      # Property setter, getter, and NOTIFY signal
+│   ├── ownership_demo.h       # QObject ownership and QPointer example
+│   └── ownership_demo.cpp     # Child creation and deleteLater() logic
 ├── qml/
 │   ├── main.qml             # UI layout (8 components)
 │   └── qml.qrc              # QML resource file
@@ -39,8 +47,12 @@ qt_interview_prep/
 ## 🎯 Current Project Scope
 
 - **1 C++ entry file** (`main.cpp`) — 10 commented steps
-- **2 QML backend classes** (`Backend`, `Backend_Next`)
-- **1 QML screen** (`main.qml`) — 2 buttons + 1 label
+- **3 C++ QObject classes** (`Backend`, `Backend_Next`, `SignalSlotDemo`)
+- **1 Q_PROPERTY data class** (`VehicleData`)
+- **1 QObject ownership class** (`OwnershipDemo`)
+- **1 dedicated signals and slots example** — C++ signal, C++ slot, and QML handler
+- **1 QML screen** (`main.qml`) — 4 buttons + 2 labels
+- **Ownership controls** — create a parent-owned child and schedule its deletion
 - **Minimal** — No networking, serial, or database code
 - **Interview-Ready** — Numbered comments in every file
 
@@ -99,6 +111,64 @@ C++: Backend::showMessage() executes
 Console: "Backend Function Called"
 ```
 
+### Flow: Signals and Slots Example
+
+The third button demonstrates a separate `SignalSlotDemo` class:
+
+1. QML calls `signalSlotDemo.triggerSignal()` through `Q_INVOKABLE`
+2. C++ emits `messageChanged(QString)` with `emit`
+3. `QObject::connect()` delivers the signal to the C++ `handleMessage()` slot
+4. QML `Connections` receives `onMessageChanged(messageText)`
+5. The QML label displays the received message
+
+```text
+QML button
+   ↓
+Q_INVOKABLE triggerSignal()
+   ↓
+emit messageChanged(text)
+   ├── C++ handleMessage(text) slot → console output
+   └── QML onMessageChanged(text) → label update
+```
+
+### Flow: Q_PROPERTY and QML Binding Example
+
+1. QML reads `vehicleData.speed`
+2. The user clicks **Increase Speed**
+3. QML calls `vehicleData.increaseSpeed()`
+4. C++ calls `setSpeed()` and changes `m_speed`
+5. C++ emits `speedChanged()`
+6. QML automatically reevaluates the binding and updates the speed label
+
+```text
+QML text: "Speed: " + vehicleData.speed
+      ↑
+   speedChanged()
+      ↑
+setSpeed(newSpeed) <- increaseSpeed()
+```
+
+### Flow: QObject Ownership Example
+
+1. QML calls `ownershipDemo.createChild()`
+2. C++ creates `new QObject(this)`
+3. `this` becomes the child's parent and owner
+4. QML calls `ownershipDemo.scheduleChildDeletion()`
+5. C++ calls `deleteLater()` so deletion occurs through the event loop
+6. `QPointer` becomes null when the child is destroyed
+
+```text
+OwnershipDemo parent
+   |
+   | owns lifetime
+   v
+QObject child
+   |
+   | deleteLater()
+   v
+Deleted safely by Qt event loop
+```
+
 ---
 
 ## 📖 Learning Sequence (Read in This Order)
@@ -125,6 +195,41 @@ For interview preparation, understand the code in this order:
    - UI layout structure
    - Button click handlers
    - C++ object access from QML
+
+5. **`src/signal_slot_demo.h`** (5 min)
+   - `signals:` and `public slots:` sections
+   - Signal parameters
+   - Difference between a signal, slot, and `Q_INVOKABLE`
+
+6. **`src/signal_slot_demo.cpp`** (5 min)
+   - Typed `QObject::connect()` syntax
+   - `emit` and one-to-many delivery
+   - C++ slot execution
+
+7. **Signals and Slots in `qml/main.qml`** (5 min)
+   - `Connections` and `target`
+   - `onMessageChanged` naming convention
+   - C++ to QML communication
+
+8. **`src/vehicle_data.h`** (5 min)
+   - `Q_PROPERTY` syntax
+   - READ, WRITE, and NOTIFY sections
+   - Getter, setter, and change signal
+
+9. **`src/vehicle_data.cpp`** (5 min)
+   - Avoiding unnecessary signal emission
+   - Updating the backing member
+   - Calling the setter from a QML-invokable method
+
+   10. **`src/ownership_demo.h`** (5 min)
+      - Parent-child ownership
+      - `QPointer` for observing QObject lifetime
+      - QML-invokable ownership operations
+
+   11. **`src/ownership_demo.cpp`** (5 min)
+      - `new QObject(this)` ownership transfer
+      - `deleteLater()` and the event loop
+      - Null checks before using an object
 
 ---
 
@@ -187,6 +292,84 @@ Marks C++ methods callable from QML:
 Q_INVOKABLE void showMessage();  // QML can call this
 ```
 
+### Signals and Slots
+
+The dedicated class contains all the basic interview elements:
+
+```cpp
+signals:
+   void messageChanged(const QString &message);
+
+public slots:
+   void handleMessage(const QString &message);
+```
+
+The signal announces that a message is available. The slot handles the message. `connect()` links
+them, and `emit` sends the signal:
+
+```cpp
+QObject::connect(
+   this,
+   &SignalSlotDemo::messageChanged,
+   this,
+   &SignalSlotDemo::handleMessage);
+
+emit messageChanged(QStringLiteral("Signal received successfully"));
+```
+
+QML receives the same signal with `Connections`:
+
+```qml
+Connections {
+   target: signalSlotDemo
+
+   function onMessageChanged(messageText) {
+      message.text = messageText
+   }
+}
+```
+
+### Q_PROPERTY and QML Binding
+
+The `VehicleData` class exposes a C++ property to QML:
+
+```cpp
+Q_PROPERTY(int speed READ speed WRITE setSpeed NOTIFY speedChanged)
+```
+
+- `READ speed`: QML reads the value using `speed()`
+- `WRITE setSpeed`: QML can write the value using `setSpeed()`
+- `NOTIFY speedChanged`: QML bindings refresh when the value changes
+
+QML creates a binding instead of copying the value:
+
+```qml
+Label {
+   text: "Speed: " + vehicleData.speed + " km/h"
+}
+```
+
+When `setSpeed()` changes the value, it emits `speedChanged()`. QML then reevaluates the binding
+automatically.
+
+### QObject Ownership and Lifetime
+
+The `OwnershipDemo` class creates a child with the parent argument:
+
+```cpp
+m_child = new QObject(this);
+```
+
+Qt automatically destroys the child when its parent is destroyed. For event-loop-safe deferred
+cleanup, the example uses:
+
+```cpp
+m_child->deleteLater();
+```
+
+`QPointer<QObject>` is a guarded pointer. It automatically becomes `nullptr` when the observed
+QObject is destroyed, helping prevent use-after-free access.
+
 ---
 
 ## ✅ Interview Talking Points
@@ -212,6 +395,48 @@ Q_INVOKABLE void showMessage();  // QML can call this
    - Meta-object system executes the function
    - Return value comes back to QML
 
+5. **"Explain signals and slots"**
+   - A signal announces that an event occurred
+   - A slot or QML handler responds to the event
+   - `QObject::connect()` creates the relationship
+   - `emit` sends the signal and its parameters
+
+6. **"What is the difference between Q_INVOKABLE, a signal, and a slot?"**
+   - `Q_INVOKABLE`: QML can call the C++ method
+   - Signal: C++ announces an event
+   - Slot: C++ function handles an event
+
+7. **"What is QML Connections?"**
+   - It listens to signals from a target QObject
+   - `onMessageChanged` runs when the C++ signal is emitted
+
+8. **"What is Q_PROPERTY?"**
+   - It exposes a C++ value through Qt's meta-object system
+   - READ identifies the getter
+   - WRITE identifies the setter
+   - NOTIFY identifies the change signal
+
+9. **"What is QML binding?"**
+   - A binding is an expression that stays connected to its dependencies
+   - When `speedChanged()` is emitted, the speed label updates automatically
+
+10. **"Why check whether the value changed in the setter?"**
+    - It avoids unnecessary signal emissions
+    - It prevents unnecessary QML binding reevaluation
+
+11. **"How does QObject parent-child ownership work?"**
+   - A parent owns its child QObject
+   - Qt destroys children automatically when the parent is destroyed
+   - Passing `this` as the parent establishes the relationship
+
+12. **"Why use deleteLater()?"**
+   - It schedules deletion through the event loop
+   - It avoids destroying an object immediately while it may still be processing an event
+
+13. **"What is QPointer?"**
+   - It observes a QObject without owning it
+   - It becomes null automatically when the QObject is destroyed
+
 ---
 
 ## 📝 File Descriptions
@@ -222,9 +447,16 @@ Q_INVOKABLE void showMessage();  // QML can call this
 | `src/main.cpp` | 43 | App initialization, QML engine, event loop |
 | `src/backend.h` | 36 | 2 QObject classes, Q_INVOKABLE methods |
 | `src/backend.cpp` | 36 | Constructor implementations, method bodies |
+| `src/signal_slot_demo.h` | 30 | Dedicated signal, slot, and Q_INVOKABLE declaration |
+| `src/signal_slot_demo.cpp` | 25 | `connect()`, `emit`, and slot implementation |
+| `src/vehicle_data.h` | 30 | `Q_PROPERTY`, getter, setter, and NOTIFY signal |
+| `src/vehicle_data.cpp` | 25 | Property update logic and QML-invokable method |
+| `src/ownership_demo.h` | 30 | QObject ownership, QPointer, and invokable methods |
+| `src/ownership_demo.cpp` | 40 | Child creation, null checks, and deleteLater() |
 | `qml/main.qml` | 80 | Window, layout, buttons, label, signal handlers |
 | `qml/qml.qrc` | 5 | Qt Resource System file mappings |
 
 ---
 
-**Ready for interviews! Each file has numbered comments explaining every step.** 🚀
+**Ready for interviews! Each file has numbered comments explaining every step, including a separate
+Signals and Slots example.** 🚀

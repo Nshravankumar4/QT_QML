@@ -16,7 +16,7 @@ ApplicationWindow {
 
     // Window size
     width: 640
-    height: 420
+    height: 520
 
     // Show the window
     visible: true
@@ -84,6 +84,62 @@ ApplicationWindow {
                 // Call Backend_Next C++ function
                 // "backendnext" was exposed from main.cpp
                 backendnext.showMessage_Next()
+            }
+        }
+
+        // Dedicated Signals and Slots example.
+        Button {
+            text: "Run Signals and Slots"
+            Layout.alignment: Qt.AlignHCenter
+
+            // QML calls the Q_INVOKABLE method in SignalSlotDemo.
+            onClicked:
+            {signalSlotDemo.triggerSignal()}
+        }
+
+        // Receives the custom signal emitted by the C++ object.
+        Connections {
+            target: signalSlotDemo
+
+            function onMessageChanged(messageText) {
+                message.text = messageText
+            }
+        }
+
+        // QML reads this C++ Q_PROPERTY through a live binding.
+        Label {
+            text: "Speed: " + vehicleData.speed + " km/h"
+            Layout.alignment: Qt.AlignHCenter
+        }
+
+        // QML calls a C++ method that changes the property.
+        Button {
+            text: "Increase Speed"
+            Layout.alignment: Qt.AlignHCenter
+
+            onClicked: vehicleData.increaseSpeed()
+        }
+
+        // Demonstrates parent-child ownership and deleteLater().
+        Button {
+            text: "Create Owned Child"
+            Layout.alignment: Qt.AlignHCenter
+
+            onClicked: ownershipDemo.createChild()
+        }
+
+        Button {
+            text: "Schedule Child Deletion"
+            Layout.alignment: Qt.AlignHCenter
+
+            onClicked: ownershipDemo.scheduleChildDeletion()
+        }
+
+        Connections {
+            target: ownershipDemo
+
+            function onStatusChanged(status) {
+                message.text = status
             }
         }
     }
